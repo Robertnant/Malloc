@@ -2,7 +2,7 @@
 
 void *beware_overflow(void *ptr, size_t nmemb, size_t size)
 {
-    if (size == 0)
+    if (size == 0 || nmemb == 0)
         return NULL;
 
     // Check for overflow.
