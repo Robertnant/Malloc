@@ -15,6 +15,9 @@ struct blk_allocator *blka_new(void)
 // Allocates a blk_meta structure and adds to head of a blk_allocator.
 struct blk_meta *blka_alloc(struct blk_allocator *blka, size_t size)
 {
+    if (size == 0)
+        return NULL;
+
     // Get the system's page size.
     long pagesize = sysconf(_SC_PAGESIZE);
 
