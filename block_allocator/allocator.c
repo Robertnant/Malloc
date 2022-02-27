@@ -49,9 +49,12 @@ void blka_free(struct blk_meta *blk)
 // De-allocates memory of the first blk_meta structure in a block allocator.
 void blka_pop(struct blk_allocator *blka)
 {
-    struct blk_meta *next = blka->meta->next;
-    blka_free(blka->meta);
-    blka->meta = next;
+    if (blka->meta)
+    {
+        struct blk_meta *next = blka->meta->next;
+        blka_free(blka->meta);
+        blka->meta = next;
+    }
 }
 
 // Free allocated blk_allocator.
