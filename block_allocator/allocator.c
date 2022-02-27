@@ -16,7 +16,7 @@ struct blk_allocator *blka_new(void)
 struct blk_meta *blka_alloc(struct blk_allocator *blka, size_t size)
 {
     if (size == 0)
-        return NULL;
+        size++;
 
     // Get the system's page size.
     long pagesize = sysconf(_SC_PAGESIZE);
