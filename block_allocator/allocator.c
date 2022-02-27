@@ -28,8 +28,11 @@ struct blk_meta *blka_alloc(struct blk_allocator *blka, size_t size)
     // Length allocated is rounded up automatically to multiple of pagesize.
     struct blk_meta *new = mmap(NULL, size, PROT_READ | PROT_WRITE,
                                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    // Size of data of blk_meta must exclude size of fields in the structure.
     new->size = (nb_pages * pagesize) - sizeof(struct blk_meta);
     new->next = blka->meta;
+    blka->meta = new;
 
     return new;
 }
@@ -55,4 +58,7 @@ void blka_delete(struct blk_allocator *blka)
     {
         blka_pop(blka);
     }
+
+    free(blka);
+    blka = NULL;
 }
