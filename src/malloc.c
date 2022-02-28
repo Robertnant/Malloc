@@ -3,6 +3,13 @@
 // Start of the heap.
 struct blk_meta *heap_start = NULL;
 
+
+// Aligns size to make malloc implementation faster.
+size_t size align(size_t size)
+{
+    return (size + sizeof(intptr_t) - 1) & ~(sizeof(intptr_t) - 1);
+}
+
 /*
 ** Finds a free block large enough to hold size parameter data or returns NULL
 ** if none is found. If a block is found then it is set as used.
@@ -38,10 +45,10 @@ void my_split(struct blk_meta *block, size_t size)
     block->next = new;
 }
 
-// Aligns size to make malloc implementation faster.
-size_t size align(size_t size)
+// Merge neighbor blocks that are free to prevent fragmentation.
+void merge()
 {
-    return (size + sizeof(intptr_t) - 1) & ~(sizeof(intptr_t) - 1);
+    // Should be used in free.
 }
 
 __attribute__((visibility("default")))
