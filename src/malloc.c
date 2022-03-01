@@ -1,7 +1,7 @@
 #include <stddef.h>
 
-#define SET_BIT(NUM, POS) ((NUM) |= 1 << (POS))
-#define CLEAR_BIT(NUM, POS) ((NUM) &= ~(1 << (POS)))
+#define SET_FREE(NUM, POS) ((NUM) |= 1 << (POS))
+#define SET_USED(NUM, POS) ((NUM) &= ~(1 << (POS)))
 
 // Block allocator.
 struct bucket_meta *allocator = NULL;
@@ -21,15 +21,16 @@ struct bucket_meta *init_alloc(size_t size)
     allocator->next_sibling = NULL;
     allocator->block_size = size;
 
+    for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t); i++)
+    {
+        allocator->free_list[i] = SIZE_MAX;;
+        allocator->last_block[i] = SIZE_MAX;
+    }
+
     // Map page for new bucket and set first block as used.
     allocator->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-    for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t); i++)
-    {
-        free_list[i] = 0;
-        last_block[i] = 0;
-    }
+    allocator->free_list[0] = SET_BIT(allocator->free_list[0], 
 
     return allocator;
 }

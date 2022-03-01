@@ -11,6 +11,8 @@
 ** another one to a bucket with same block size, the size of each block,
 ** a free list represented as bytes (1 for a free block and 0 for a used one),
 ** and a list to help know if blocks are merged (from realloc).
+** The free list is in reality composed of multiple lists in order to have
+** enough bits to represent a page.
 */
 struct bucket_meta
 {
