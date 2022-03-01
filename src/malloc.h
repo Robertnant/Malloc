@@ -4,6 +4,9 @@
 #define YES 1
 #define NO 0
 
+#define PAGE_SIZE 4096
+#define MAX_FLAGS PAGE_SIZE / 8
+
 /*
 ** List of addresses of different buckets (pages split in different sizes)
 ** available. This list is not visible by user.
@@ -20,8 +23,8 @@ struct bucket_meta
     void *next;
     struct bucket_meta *next_sibling;
     size_t block_size;
-    size_t free_list[sysconf(_SC_PAGESIZE) / sizeof(size_t)];
-    size_t last_block[sysconf(_SC_PAGESIZE) / sizeof(size_t)];
+    size_t free_list[MAX_FLAGS / sizeof(size_t)];
+    size_t last_block[MAX_FLAGS / sizeof(size_t)];
 };
 
 #endif /* !MALLOC_H */
