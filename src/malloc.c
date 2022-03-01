@@ -27,10 +27,9 @@ struct bucket_meta *init_alloc(size_t size)
         allocator->last_block[i] = SIZE_MAX;
     }
 
-    // Map page for new bucket and set first block as used.
+    // Map page for new bucket.
     allocator->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    allocator->free_list[0] = SET_BIT(allocator->free_list[0], 
 
     return allocator;
 }
@@ -40,12 +39,18 @@ void *malloc(size_t size)
 {
     // TODO: check size overflow.
 
+    // TODO: check if align matches the one of subject.
     size = align(size);
 
     // Create new allocator containing addresses of buckets if not found yet.
     if (allocator == NULL)
     {
         allocator = init_alloc(size);
+
+        // Return a free block to the user.
+        int block_pos = mark_block(allocator->free_list);
+
+        return get_block(allocator->bucket, block_pos, allocator->block_size);
     }
 }
 
