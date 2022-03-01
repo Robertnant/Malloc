@@ -12,6 +12,41 @@ size_t align(size_t size)
     return (size + sizeof(long double) - 1) & ~(sizeof(long double) - 1);
 }
 
+/*
+** Traverses all bucket metadatas to find bucket with block size matching
+** the (aligned) malloc size requested by user.
+** A pointer to metadata of last bucket checked is returned (last bucket in
+** list of metadata).
+*/
+void *find_block(struct bucket_meta *allocator, size_t size,
+        struct bucket_meta *last)
+{
+    struct bucket_meta *curr = allocator;
+
+    while (curr)
+    {
+        while (curr->block_size != size)
+        {
+            curr = curr->next;
+        }
+
+        if (curr)
+        {
+            // Return a free block or look for new bucket if current if full.
+            int block_pos = mark_block(curr->free_list);
+
+            if (block_pos != -1)
+                return get_block(curr->bucket, block_pos, curr->block_size);
+
+            last = curr;
+            curr = curr->next;
+        }
+    }
+
+
+    return NULL;
+}
+
 // Initializes a new bucket allocator.
 struct bucket_meta *init_alloc(size_t size)
 {
@@ -52,11 +87,18 @@ void *malloc(size_t size)
 
         return get_block(allocator->bucket, block_pos, allocator->block_size);
     }
+
+    // Find a free block or create a new bucket to return new block.
+    struct bucket_meta *last = NULL;
+    void *block = find_block(allocator, size, last);
+
+    return block ? block : requestBlock(last, size);
 }
 
 __attribute__((visibility("default")))
 void free(void *ptr)
 {
+    return NULL;
 }
 
 __attribute__((visibility("default")))
@@ -68,5 +110,5 @@ void *realloc(void *ptr, size_t size)
 __attribute__((visibility("default")))
 void *calloc(size_t nmemb, size_t size)
 {
-
+    return NULL;
 }
