@@ -1,4 +1,12 @@
+#define _GNU_SOURCE
+
+#include "malloc.h"
+
 #include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #include "tools.h"
 
@@ -17,7 +25,7 @@ size_t align(size_t size)
 */
 struct bucket_meta *find_meta(void *ptr, int *pos)
 {
-    size_t *start = page_begin(ptr, sysconf(_SC_PAGESIZE));
+    char *start = page_begin(ptr, sysconf(_SC_PAGESIZE));
 
     struct bucket_meta *curr = allocator;
 
@@ -28,8 +36,9 @@ struct bucket_meta *find_meta(void *ptr, int *pos)
 
     if (curr && pos)
     {
-        *pos = (size_t) ptr - start;
-        pos = 0 ? 0 : pos / curr->block_size;
+        char *ptr_cast = ptr;
+        *pos = ptr_cast - start;
+        *pos = 0 ? 0 : *pos / curr->block_size;
     }
 
     return curr;
@@ -43,14 +52,14 @@ struct bucket_meta *find_meta(void *ptr, int *pos)
 ** updated as well.
 */
 void *find_block(struct bucket_meta *allocator, size_t size,
-        struct bucket_meta *last_group, struct bucket_meta *last)
+                 struct bucket_meta **last_group, struct bucket_meta **last)
 {
     struct bucket_meta *curr = allocator;
 
     // Find first block with wanted size.
     while (curr->block_size != size)
     {
-        last = curr;
+        *last = curr;
         curr = curr->next;
     }
 
@@ -62,7 +71,7 @@ void *find_block(struct bucket_meta *allocator, size_t size,
         if (block_pos != -1)
             return get_block(curr->bucket, block_pos, curr->block_size);
 
-        last_group = curr;
+        *last_group = curr;
 
         // Move directly to next block with sibling.
         curr = curr->next_sibling;
@@ -78,7 +87,7 @@ void *find_block(struct bucket_meta *allocator, size_t size,
 ** they are linked.
 */
 void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
-        size_t size)
+                   size_t size)
 {
     struct bucket_meta *new = meta + sizeof(struct bucket_meta);
 
@@ -94,8 +103,8 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
     }
 
     // Map page for new bucket.
-    new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE |
-            MAP_ANONYMOUS, -1, 0);
+    new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     // Return a free block to the user.
     int block_pos = mark_block(new->free_list);
@@ -111,8 +120,9 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
 // Initializes a new bucket allocator.
 struct bucket_meta *init_alloc(size_t size)
 {
-    struct bucket_meta *new = mmap(NULL, sysconf(_SC_PAGESIZE),
-            PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    struct bucket_meta *new =
+        mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ | PROT_WRITE,
+             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     new->next = NULL;
     new->next_sibling = NULL;
     new->block_size = size;
@@ -124,18 +134,16 @@ struct bucket_meta *init_alloc(size_t size)
     }
 
     // Map page for new bucket.
-    new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE |
-            MAP_ANONYMOUS, -1, 0);
+    new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     return new;
 }
 
-__attribute__((visibility("default")))
-void *malloc(size_t size)
+__attribute__((visibility("default"))) void *malloc(size_t size)
 {
     // TODO: check size overflow.
 
-    // TODO: check if align matches the one of subject.
     size = align(size);
 
     // Create new allocator containing addresses of buckets if not found yet.
@@ -152,17 +160,13 @@ void *malloc(size_t size)
     // Find free block or create new bucket (after last one) to get new block.
     struct bucket_meta *last = NULL;
     struct bucket_meta *last_group = NULL;
-    void *block = find_block(allocator, size, last_group, last);
+    void *block = find_block(allocator, size, &last_group, &last);
 
     return block ? block : requestBlock(last, last_group, size);
 }
 
-__attribute__((visibility("default")))
-void free(void *ptr)
+__attribute__((visibility("default"))) void free(void *ptr)
 {
-    if (!ptr)
-        return malloc(size);
-
     int pos;
     struct bucket_meta *meta = find_meta(ptr, &pos);
 
@@ -172,19 +176,20 @@ void free(void *ptr)
         size_t count = sysconf(_SC_PAGESIZE) / sizeof(size_t);
 
         size_t i = 0;
-        while (i < count && FREE(free_list))
+        while (i < count && FREE(meta->free_list[i]))
         {
             i++;
         }
 
         if (i == count)
         {
-            unmap(meta->bucket, sysconf(_SC_PAGESIZE));
+            munmap(meta->bucket, sysconf(_SC_PAGESIZE));
 
             // Unlink unmapped bucket meta from metadata list.
             if (meta != allocator)
             {
                 struct bucket_meta *prev = meta - sizeof(struct bucket_meta);
+                prev->next = meta->next;
             }
             else if (meta->next)
             {
@@ -195,17 +200,17 @@ void free(void *ptr)
                 // Nullify bucket pointer if allocator has only one metadata.
                 meta->bucket = NULL;
                 for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t);
-                        i++)
+                     i++)
                 {
-                    new->free_list[i] = SIZE_MAX;
-                    new->last_block[i] = SIZE_MAX;
+                    meta->free_list[i] = SIZE_MAX;
+                    meta->last_block[i] = SIZE_MAX;
                 }
             }
         }
         else
         {
             // Mark block as free if bucket must not be unmapped.
-            set_free(meta->free_list, pos);
+            set_free(pos, meta->free_list);
         }
     }
 }
@@ -218,22 +223,24 @@ void free(void *ptr)
 // to bucket metadata to then check if page_begin of pointer is within start
 // and last_meta range of bucket metadatas. Maybe check if ptr is aligned.
 // TODO Optimize memcpy
-__attribute__((visibility("default")))
-void *realloc(void *ptr, size_t size)
+__attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
 {
+    if (!ptr)
+        return malloc(size);
+
     int pos;
     struct bucket_meta *meta = find_meta(ptr, &pos);
 
     if (meta)
     {
-        size_t aligned_size = align(size);
+        size = align(size);
         void *new = malloc(size);
 
         if (new)
         {
             struct bucket_meta *new_meta = find_meta(ptr, NULL);
-            mempcpy(new, ptr);
-            new->free_list[0] = 1;
+            new_meta->free_list[0] = 1;
+            mempcpy(new, ptr, meta->block_size);
 
             // Free old bucket.
             free(ptr);
@@ -245,17 +252,16 @@ void *realloc(void *ptr, size_t size)
     return NULL;
 }
 
-__attribute__((visibility("default")))
-void *calloc(size_t nmemb, size_t size)
+__attribute__((visibility("default"))) void *calloc(size_t nmemb, size_t size)
 {
     // Cast pointer to long double as blocks are multiples of this type.
     long double *new = malloc(nmemb * size);
 
     if (new)
     {
-        long double count = align(nmemb * size) / sizeof(long double);
+        size_t count = align(nmemb * size) / sizeof(long double);
 
-        for (long double i = 0; i < count; i++)
+        for (size_t i = 0; i < count; i++)
         {
             new[i] = 0;
         }
