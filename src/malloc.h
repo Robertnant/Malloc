@@ -8,7 +8,7 @@
 #define NO 0
 
 #define PAGE_SIZE 4096
-#define MAX_FLAGS PAGE_SIZE / 8
+#define MAX_FLAGS PAGE_SIZE / sizeof(long double)
 
 /*
 ** List of addresses of different buckets (pages split in different sizes)
