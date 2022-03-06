@@ -26,7 +26,7 @@ struct bucket_meta *find_meta(void *ptr, int *pos)
         curr = curr->next;
     }
 
-    if (curr)
+    if (curr && pos)
     {
         *pos = (size_t) ptr - start;
         pos = 0 ? 0 : pos / curr->block_size;
@@ -160,12 +160,6 @@ void *malloc(size_t size)
 __attribute__((visibility("default")))
 void free(void *ptr)
 {
-    // Step 0: Check if pointer is valid.
-    // Step 1: Get address begining of page.
-    // Step 2: Find the address in allocator.
-    // Step 3: With block size from metadata, determine nth position of ptr.
-    // Step 4: Update free list.
-    // Step 5: if all blocks are free, unmap bucket.
     if (!ptr)
         return malloc(size);
 
@@ -174,8 +168,6 @@ void free(void *ptr)
 
     if (meta)
     {
-        size_t aligned_size = align(size);
-
         // Unmap bucket if all blocks are free.
         size_t count = sysconf(_SC_PAGESIZE) / sizeof(size_t);
 
@@ -222,9 +214,35 @@ void free(void *ptr)
 ** Naive implementation of realloc where data is moved to a different bucket
 ** depending on realloc size.
 */
+// TODO Optimize way of checking pointer validity (maybe add *last_meta pointer
+// to bucket metadata to then check if page_begin of pointer is within start
+// and last_meta range of bucket metadatas. Maybe check if ptr is aligned.
+// TODO Optimize memcpy
 __attribute__((visibility("default")))
 void *realloc(void *ptr, size_t size)
 {
+    int pos;
+    struct bucket_meta *meta = find_meta(ptr, &pos);
+
+    if (meta)
+    {
+        size_t aligned_size = align(size);
+        void *new = malloc(size);
+
+        if (new)
+        {
+            struct bucket_meta *new_meta = find_meta(ptr, NULL);
+            mempcpy(new, ptr);
+            new->free_list[0] = 1;
+
+            // Free old bucket.
+            free(ptr);
+
+            return new;
+        }
+    }
+
+    return NULL;
 }
 
 __attribute__((visibility("default")))
