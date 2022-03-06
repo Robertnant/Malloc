@@ -1,4 +1,5 @@
 #include "tools.h"
+#include "malloc.h"
 
 /*
 ** Marks a block of the free_list as used.
