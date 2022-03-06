@@ -94,7 +94,7 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
     new->next_sibling = NULL;
     new->block_size = size;
 
-    for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t); i++)
+    for (size_t i = 0; i < MAX_FLAGS / sizeof(size_t); i++)
     {
         new->free_list[i] = SIZE_MAX;
         new->last_block[i] = SIZE_MAX;
@@ -125,7 +125,7 @@ struct bucket_meta *init_alloc(size_t size)
     new->next_sibling = NULL;
     new->block_size = size;
 
-    for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t); i++)
+    for (size_t i = 0; i < MAX_FLAGS / sizeof(size_t); i++)
     {
         new->free_list[i] = SIZE_MAX;
         new->last_block[i] = SIZE_MAX;
@@ -171,7 +171,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
     if (meta)
     {
         // Unmap bucket if all blocks are free.
-        size_t count = sysconf(_SC_PAGESIZE) / sizeof(size_t);
+        size_t count = MAX_FLAGS / sizeof(size_t);
 
         size_t i = 0;
         while (i < count && FREE(meta->free_list[i]))
@@ -197,8 +197,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
             {
                 // Nullify bucket pointer if allocator has only one metadata.
                 meta->bucket = NULL;
-                for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t);
-                     i++)
+                for (size_t i = 0; i < MAX_FLAGS / sizeof(size_t); i++)
                 {
                     meta->free_list[i] = SIZE_MAX;
                     meta->last_block[i] = SIZE_MAX;
@@ -237,7 +236,7 @@ __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
         if (new)
         {
             struct bucket_meta *new_meta = find_meta(ptr, NULL);
-            new_meta->free_list[0] = 1;
+            new_meta->free_list[0] -= 1;
             mempcpy(new, ptr, meta->block_size);
 
             // Free old bucket.
