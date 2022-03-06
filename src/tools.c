@@ -6,7 +6,7 @@
 */
 int mark_block(size_t *free_list)
 {
-    size_t count = sysconf(_SC_PAGESIZE) / sizeof(size_t);
+    size_t count = MAX_FLAGS / sizeof(size_t);
 
     size_t i;
     for (i = 0; i < count; i++)
