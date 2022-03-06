@@ -13,6 +13,30 @@ size_t align(size_t size)
 }
 
 /*
+** Finds are returns metadata of a given valid block address.
+** Returns position of block given in bucket through int pointer.
+*/
+struct bucket_meta *find_meta(void *ptr, int *pos)
+{
+    size_t *start = page_begin(ptr, sysconf(_SC_PAGESIZE));
+
+    struct bucket_meta *curr = allocator;
+
+    while (curr && curr->bucket != start)
+    {
+        curr = curr->next;
+    }
+
+    if (curr)
+    {
+        *pos = (size_t) ptr - start;
+        pos = 0 ? 0 : pos / curr->block_size;
+    }
+
+    return curr;
+}
+
+/*
 ** Traverses all bucket metadatas to find bucket with block size matching
 ** the (aligned) malloc size requested by user.
 ** The last_group parameter is updated when the last bucket metadata of wanted
@@ -96,7 +120,7 @@ struct bucket_meta *init_alloc(size_t size)
 
     for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t); i++)
     {
-        new->free_list[i] = SIZE_MAX;;
+        new->free_list[i] = SIZE_MAX;
         new->last_block[i] = SIZE_MAX;
     }
 
@@ -137,17 +161,47 @@ void *malloc(size_t size)
 __attribute__((visibility("default")))
 void free(void *ptr)
 {
-    // Get begining of page.
+    // Step 0: Check if pointer is valid.
+    // Step 1: Get address begining of page.
+    // Step 2: Find the address in allocator.
+    // Step 3: With block size from metadata, determine nth position of ptr.
+    // Step 4: Update free list.
+    // Step 5: if all blocks are free, unmap bucket.
 }
 
+/*
+** Naive implementation of realloc where data is moved to a different bucket
+** depending on realloc size.
+*/
 __attribute__((visibility("default")))
 void *realloc(void *ptr, size_t size)
 {
+    if (!ptr)
+        return malloc(size);
+
+    if (is_valid(ptr))
+    {
+        size_t aligned_size = align(size);
+    }
+
     return NULL;
 }
 
 __attribute__((visibility("default")))
 void *calloc(size_t nmemb, size_t size)
 {
-    return NULL;
+    // Cast pointer to long double as blocks are multiples of this type.
+    long double *new = malloc(nmemb * size);
+
+    if (new)
+    {
+        long double count = align(nmemb * size) / sizeof(long double);
+
+        for (long double i = 0; i < count; i++)
+        {
+            new[i] = 0;
+        }
+    }
+
+    return new;
 }

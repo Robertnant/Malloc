@@ -38,3 +38,12 @@ void *get_block(void *bucket, size_t n, size_t block_size)
     char *bucket_cast = bucket;
     return bucket_cast + (n * block_size);
 }
+
+// Gets begining of page from given block address.
+void *page_begin(void *ptr, size_t page_size)
+{
+    char *char_ptr = ptr;
+
+    size_t start = (size_t)ptr & (page_size - 1);
+    return char_ptr - start;
+}
