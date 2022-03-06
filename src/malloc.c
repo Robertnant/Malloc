@@ -8,6 +8,8 @@
 
 #include "tools.h"
 
+#define MAX_META PAGE_SIZE / sizeof(struct bucket_meta)
+
 // Block allocator.
 struct bucket_meta *allocator = NULL;
 
@@ -87,7 +89,19 @@ void *find_block(struct bucket_meta *allocator, size_t size,
 void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
                    size_t size)
 {
+    // Increase bucket metadata count in allocator.
+    allocator->count += 1;
+
     struct bucket_meta *new = meta + sizeof(struct bucket_meta);
+
+    // Check remaining memory in page mapped for allocator.
+    if (allocator->count >= 0.75 * MAX_META)
+    {
+        mmap(new, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE |
+                MAP_ANONYMOUS, -1, 0);
+        allocator->page_size *= 2;
+        allocator->count /= 2;
+    }
 
     meta->next = new;
     new->next = NULL;
@@ -124,6 +138,8 @@ struct bucket_meta *init_alloc(size_t size)
     new->next = NULL;
     new->next_sibling = NULL;
     new->block_size = size;
+    new->count = 1;
+    new->page_size = PAGE_SIZE;
 
     for (size_t i = 0; i < MAX_FLAGS / sizeof(size_t); i++)
     {
@@ -165,6 +181,8 @@ __attribute__((visibility("default"))) void *malloc(size_t size)
     return block ? block : requestBlock(last, last_group, size);
 }
 
+// TODO: When unmapping a bucket, find way to make metadata slot reusable.
+// (link as next bucket meta of last metadata in allocator).
 __attribute__((visibility("default"))) void free(void *ptr)
 {
     int pos;
@@ -196,6 +214,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
             }
             else if (meta->next)
             {
+                meta->next->count = allocator->count;
                 allocator = meta->next;
             }
             else

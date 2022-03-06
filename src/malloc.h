@@ -23,9 +23,11 @@
 struct bucket_meta
 {
     void *bucket;
-    void *next;
+    struct bucket_meta *next;
     struct bucket_meta *next_sibling;
     size_t block_size;
+    size_t count;
+    size_t page_size;
     size_t free_list[MAX_FLAGS / sizeof(size_t)];
     size_t last_block[MAX_FLAGS / sizeof(size_t)];
 };
