@@ -1,12 +1,15 @@
 include "tools.h"
 
 #define FULL(A) ((A) == 0)
+#define SIZE_BITS sizeof(size_t) * 8
+#define SET_FREE(NUM, POS) ((NUM) |= 1 << (POS))
+#define SET_USED(NUM, POS) ((NUM) &= ~(1 << (POS)))
 
 /*
 ** Marks a block of the free_list as used.
 ** Returns position of block set if successful else -1 if all blocks used.
 */
-int mark_block(*size_t free_list)
+int mark_block(size_t *free_list)
 {
     size_t count = sysconf(_SC_PAGESIZE) / sizeof(size_t);
 
@@ -30,6 +33,16 @@ int mark_block(*size_t free_list)
 
     // All blocks used.
     return -1;
+}
+
+// Sets block at given position as free.
+void set_free(size_t pos, size_t *free_list)
+{
+    // Get index of list containing flag wanted.
+    size_t list_index = pos / SIZE_BITS;
+    size_t index = pos % SIZE_BITS;
+
+    free_list[list_index] = SET_FREE(free_list[list_index], index);
 }
 
 // Gets the nth (0 indexed) block of a bucket using its block_s size.

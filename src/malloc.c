@@ -1,7 +1,5 @@
 #include <stddef.h>
 
-#define SET_FREE(NUM, POS) ((NUM) |= 1 << (POS))
-#define SET_USED(NUM, POS) ((NUM) &= ~(1 << (POS)))
 
 // Block allocator.
 struct bucket_meta *allocator = NULL;
@@ -179,8 +177,12 @@ void *realloc(void *ptr, size_t size)
     if (!ptr)
         return malloc(size);
 
-    if (is_valid(ptr))
+    int pos;
+    struct bucket_meta *meta = find_meta(ptr, &pos);
+
+    if (meta)
     {
+        // Mark block as free.
         size_t aligned_size = align(size);
     }
 
