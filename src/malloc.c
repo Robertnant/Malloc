@@ -1,5 +1,6 @@
 #include <stddef.h>
 
+#include "tools.h"
 
 // Block allocator.
 struct bucket_meta *allocator = NULL;
@@ -165,6 +166,56 @@ void free(void *ptr)
     // Step 3: With block size from metadata, determine nth position of ptr.
     // Step 4: Update free list.
     // Step 5: if all blocks are free, unmap bucket.
+    if (!ptr)
+        return malloc(size);
+
+    int pos;
+    struct bucket_meta *meta = find_meta(ptr, &pos);
+
+    if (meta)
+    {
+        size_t aligned_size = align(size);
+
+        // Unmap bucket if all blocks are free.
+        size_t count = sysconf(_SC_PAGESIZE) / sizeof(size_t);
+
+        size_t i = 0;
+        while (i < count && FREE(free_list))
+        {
+            i++;
+        }
+
+        if (i == count)
+        {
+            unmap(meta->bucket, sysconf(_SC_PAGESIZE));
+
+            // Unlink unmapped bucket meta from metadata list.
+            if (meta != allocator)
+            {
+                struct bucket_meta *prev = meta - sizeof(struct bucket_meta);
+            }
+            else if (meta->next)
+            {
+                allocator = meta->next;
+            }
+            else
+            {
+                // Nullify bucket pointer if allocator has only one metadata.
+                meta->bucket = NULL;
+                for (size_t i = 0; i < sysconf(_SC_PAGESIZE) / sizeof(size_t);
+                        i++)
+                {
+                    new->free_list[i] = SIZE_MAX;
+                    new->last_block[i] = SIZE_MAX;
+                }
+            }
+        }
+        else
+        {
+            // Mark block as free if bucket must not be unmapped.
+            set_free(meta->free_list, pos);
+        }
+    }
 }
 
 /*
@@ -174,19 +225,6 @@ void free(void *ptr)
 __attribute__((visibility("default")))
 void *realloc(void *ptr, size_t size)
 {
-    if (!ptr)
-        return malloc(size);
-
-    int pos;
-    struct bucket_meta *meta = find_meta(ptr, &pos);
-
-    if (meta)
-    {
-        // Mark block as free.
-        size_t aligned_size = align(size);
-    }
-
-    return NULL;
 }
 
 __attribute__((visibility("default")))

@@ -1,10 +1,5 @@
 include "tools.h"
 
-#define FULL(A) ((A) == 0)
-#define SIZE_BITS sizeof(size_t) * 8
-#define SET_FREE(NUM, POS) ((NUM) |= 1 << (POS))
-#define SET_USED(NUM, POS) ((NUM) &= ~(1 << (POS)))
-
 /*
 ** Marks a block of the free_list as used.
 ** Returns position of block set if successful else -1 if all blocks used.
