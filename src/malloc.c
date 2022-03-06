@@ -15,11 +15,12 @@ size_t align(size_t size)
 /*
 ** Traverses all bucket metadatas to find bucket with block size matching
 ** the (aligned) malloc size requested by user.
-** A pointer to metadata of last bucket checked is returned (last bucket in
-** list of metadata).
+** The last_group parameter is updated when the last bucket metadata of wanted
+** size is found but full. A pointer to the last metadata of the allocator is
+** updated as well.
 */
 void *find_block(struct bucket_meta *allocator, size_t size,
-        struct bucket_meta *last)
+        struct bucket_meta *last_group, struct bucket_meta *last)
 {
     struct bucket_meta *curr = allocator;
 
@@ -27,6 +28,7 @@ void *find_block(struct bucket_meta *allocator, size_t size,
     {
         while (curr->block_size != size)
         {
+            last = curr;
             curr = curr->next;
         }
 
@@ -38,7 +40,7 @@ void *find_block(struct bucket_meta *allocator, size_t size,
             if (block_pos != -1)
                 return get_block(curr->bucket, block_pos, curr->block_size);
 
-            last = curr;
+            last_group = curr;
             curr = curr->next;
         }
     }
@@ -49,8 +51,11 @@ void *find_block(struct bucket_meta *allocator, size_t size,
 /*
 ** Creates a new bucket and appends metadata to list of metadata given.
 ** A pointer to a free block is returned.
+** If a bucket with same size was previously found (last_group),
+** they are linked.
 */
-void *requestBlock(struct bucket_meta *meta, size_t size)
+void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
+        size_t size)
 {
     struct bucket_meta *new = meta + sizeof(struct bucket_meta);
 
@@ -72,7 +77,12 @@ void *requestBlock(struct bucket_meta *meta, size_t size)
     // Return a free block to the user.
     int block_pos = mark_block(new->free_list);
 
-    return get_block(new->bucket, block_pos, new->block_size);
+    void *block = get_block(new->bucket, block_pos, new->block_size);
+
+    if (last_group)
+        last_group->next_sibling = block;
+
+    return block;
 }
 
 // Initializes a new bucket allocator.
@@ -118,15 +128,16 @@ void *malloc(size_t size)
 
     // Find free block or create new bucket (after last one) to get new block.
     struct bucket_meta *last = NULL;
-    void *block = find_block(allocator, size, last);
+    struct bucket_meta *last_group = NULL;
+    void *block = find_block(allocator, size, last_group, last);
 
-    return block ? block : requestBlock(last, size);
+    return block ? block : requestBlock(last, last_group, size);
 }
 
 __attribute__((visibility("default")))
 void free(void *ptr)
 {
-    return NULL;
+    // Get begining of page.
 }
 
 __attribute__((visibility("default")))
