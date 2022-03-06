@@ -48,25 +48,25 @@ void *find_block(struct bucket_meta *allocator, size_t size,
 {
     struct bucket_meta *curr = allocator;
 
+    // Find first block with wanted size.
+    while (curr->block_size != size)
+    {
+        last = curr;
+        curr = curr->next;
+    }
+
+    // Return a free block or move to next bucket of same size if current full.
     while (curr)
     {
-        while (curr->block_size != size)
-        {
-            last = curr;
-            curr = curr->next;
-        }
+        int block_pos = mark_block(curr->free_list);
 
-        if (curr)
-        {
-            // Return a free block or look for new bucket if current if full.
-            int block_pos = mark_block(curr->free_list);
+        if (block_pos != -1)
+            return get_block(curr->bucket, block_pos, curr->block_size);
 
-            if (block_pos != -1)
-                return get_block(curr->bucket, block_pos, curr->block_size);
+        last_group = curr;
 
-            last_group = curr;
-            curr = curr->next;
-        }
+        // Move directly to next block with sibling.
+        curr = curr->next_sibling;
     }
 
     return NULL;
