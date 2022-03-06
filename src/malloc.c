@@ -172,6 +172,9 @@ __attribute__((visibility("default"))) void free(void *ptr)
 
     if (meta)
     {
+        // Mark block as free if bucket must not be unmapped.
+        set_free(pos, meta->free_list);
+
         // Unmap bucket if all blocks are free.
         size_t count = MAX_FLAGS / sizeof(size_t);
 
@@ -205,11 +208,6 @@ __attribute__((visibility("default"))) void free(void *ptr)
                     meta->last_block[i] = SIZE_MAX;
                 }
             }
-        }
-        else
-        {
-            // Mark block as free if bucket must not be unmapped.
-            set_free(pos, meta->free_list);
         }
     }
 }
