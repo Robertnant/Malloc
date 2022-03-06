@@ -55,7 +55,7 @@ void *find_block(struct bucket_meta *allocator, size_t size,
     struct bucket_meta *curr = allocator;
 
     // Find first block with wanted size.
-    while (curr->block_size != size)
+    while (curr && curr->block_size != size)
     {
         *last = curr;
         curr = curr->next;
@@ -138,6 +138,8 @@ struct bucket_meta *init_alloc(size_t size)
     return new;
 }
 
+// TODO: Handle case when allocator page is used. At 75% usage of allocator for
+// example, remap page to make it bigger.
 __attribute__((visibility("default"))) void *malloc(size_t size)
 {
     // TODO: check size overflow.
