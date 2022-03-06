@@ -5,7 +5,7 @@ LDFLAGS = -shared
 VPATH = src
 
 TARGET_LIB = libmalloc.so
-OBJS = malloc.o
+OBJS = malloc.o tools.o
 
 all: library
 

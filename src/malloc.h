@@ -1,6 +1,9 @@
 #ifndef MALLOC_H
 #define MALLOC_H
 
+#include <stddef.h>
+#include <stdint.h>
+
 #define YES 1
 #define NO 0
 

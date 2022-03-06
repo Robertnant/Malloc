@@ -1,11 +1,15 @@
 #ifndef TOOLS_H
 #define TOOLS_H
 
+#include <stddef.h>
+#include <unistd.h>
+
 #define FULL(A) ((A) == 0)
 #define FREE(A) ((A) == SIZE_MAX)
 #define SIZE_BITS sizeof(size_t) * 8
 #define SET_FREE(NUM, POS) ((NUM) |= 1 << (POS))
 #define SET_USED(NUM, POS) ((NUM) &= ~(1 << (POS)))
+#define IS_SET(NUM, POS) ((NUM) & (1 << (POS - 1)))
 
 int mark_block(size_t *free_list);
 void *get_block(void *bucket, size_t n, size_t block_size);

@@ -15,12 +15,12 @@ int mark_block(size_t *free_list)
         {
             // Test each bit of free list until a free block is found.
             int pos = 0;
-            while (!is_set(free_list[i], pos))
+            while (!IS_SET(free_list[i], pos))
             {
                 pos++;
             }
 
-            free_list[i] = SET_USED(free_list[i], pos);
+            SET_USED(free_list[i], pos);
 
             return pos;
         }
@@ -37,7 +37,7 @@ void set_free(size_t pos, size_t *free_list)
     size_t list_index = pos / SIZE_BITS;
     size_t index = pos % SIZE_BITS;
 
-    free_list[list_index] = SET_FREE(free_list[list_index], index);
+    SET_FREE(free_list[list_index], index);
 }
 
 // Gets the nth (0 indexed) block of a bucket using its block_s size.
