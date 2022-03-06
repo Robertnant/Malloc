@@ -2,10 +2,11 @@ CC = gcc
 CPPFLAGS = -D_DEFAULT_SOURCE
 CFLAGS = -Wall -Wextra -Werror -std=c99 -fPIC -fno-builtin
 LDFLAGS = -shared
-VPATH = src
+VPATH = src tests
 
 TARGET_LIB = libmalloc.so
 OBJS = malloc.o tools.o
+TSRC = tests/tests.c
 
 all: library
 
@@ -18,7 +19,11 @@ $(TARGET_LIB): $(OBJS)
 debug: CFLAGS += -g
 debug: clean $(TARGET_LIB)
 
+check: library $(TSRC)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(TSRC) -o check -lcriterion
+	./check
+
 clean:
-	$(RM) $(TARGET_LIB) $(OBJS)
+	$(RM) $(TARGET_LIB) $(OBJS) check
 
 .PHONY: all $(TARGET_LIB) clean
