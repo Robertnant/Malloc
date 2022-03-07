@@ -110,15 +110,7 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
     new->next_sibling = NULL;
     new->block_size = size;
 
-    size_t nb_flags = (PAGE_SIZE / size);
-    size_t count = nb_flags / sizeof(size_t);
-    count += count == 0 ? 1 : 0;
-    for (size_t i = 0; i < count; i++)
-    {
-        new->free_list[i] = nb_flags;
-        new->last_block[i] = nb_flags;
-    }
-
+    reset_list(new->free_list, new->last_block, size);
 
     // Map page for new bucket.
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
@@ -147,14 +139,7 @@ struct bucket_meta *init_alloc(size_t size)
     new->count = 1;
     new->page_size = PAGE_SIZE;
 
-    size_t nb_flags = (PAGE_SIZE / size);
-    size_t count = nb_flags / sizeof(size_t);
-    count += count == 0 ? 1 : 0;
-    for (size_t i = 0; i < count; i++)
-    {
-        new->free_list[i] = nb_flags;
-        new->last_block[i] = nb_flags;
-    }
+    reset_list(new->free_list, new->last_block, size);
 
     // Map page for new bucket.
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
@@ -204,13 +189,39 @@ __attribute__((visibility("default"))) void free(void *ptr)
 
         // Unmap bucket if all blocks are free.
         size_t nb_flags = (PAGE_SIZE / meta->block_size);
-        size_t count = nb_flags / sizeof(size_t);
+        size_t count = nb_flags / SIZE_BITS;
         count += count == 0 ? 1 : 0;
 
+        size_t remaining_flags = nb_flags % SIZE_BITS;
+
+        if (remaining_flags == 0)
+            count += 1;
+
         size_t i = 0;
-        while (i < count && (meta->free_list[i] == nb_flags))
+
+        while (i < count - 1 && (meta->free_list[i] == SIZE_MAX))
         {
             i++;
+        }
+
+        // Check last size_t of free list if all previous are free.
+        if (i == count - 1)
+        {
+            if (remaining_flags == 0)
+            {
+                i++;
+            }
+            else
+            {
+                size_t pos = 0;
+                while (pos < remaining_flags && IS_SET(meta->free_list[i], pos))
+                {
+                    pos++;
+                }
+
+                if (pos == remaining_flags)
+                    i++;
+            }
         }
 
         if (i == count)
@@ -232,14 +243,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
             {
                 // Nullify bucket pointer if allocator has only one metadata.
                 meta->bucket = NULL;
-                size_t nb_flags = (PAGE_SIZE / meta->block_size);
-                size_t count = nb_flags / sizeof(size_t);
-                count += count == 0 ? 1 : 0;
-                for (size_t i = 0; i < count; i++)
-                {
-                    meta->free_list[i] = nb_flags;
-                    meta->last_block[i] = nb_flags;
-                }
+                reset_list(meta->free_list, meta->last_block, meta->block_size);
             }
         }
     }
