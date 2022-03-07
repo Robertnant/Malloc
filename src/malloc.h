@@ -24,6 +24,7 @@ struct bucket_meta
 {
     void *bucket;
     struct bucket_meta *next;
+    struct bucket_meta *last_created;
     struct bucket_meta *next_sibling;
     size_t block_size;
     size_t count;
