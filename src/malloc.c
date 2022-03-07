@@ -231,7 +231,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
             // Unlink unmapped bucket meta from metadata list.
             if (meta != allocator)
             {
-                struct bucket_meta *prev = meta - sizeof(struct bucket_meta);
+                struct bucket_meta *prev = meta - 1;
                 prev->next = meta->next;
             }
             else if (meta->next)
