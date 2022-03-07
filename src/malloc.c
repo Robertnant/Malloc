@@ -20,7 +20,7 @@ size_t align(size_t size)
 }
 
 /*
-** Finds are returns metadata of a given valid block address.
+** Finds and returns metadata of a given valid block address.
 ** Returns position of block given in bucket through int pointer.
 */
 struct bucket_meta *find_meta(void *ptr, int *pos)
@@ -66,16 +66,31 @@ void *find_block(struct bucket_meta *allocator, size_t size,
     // Return a free block or move to next bucket of same size if current full.
     while (curr)
     {
-        int block_pos = mark_block(curr->free_list, size);
+        if (curr->bucket)
+        {
+            int block_pos = mark_block(curr->free_list, size);
 
-        if (block_pos != -1)
-            return get_block(curr->bucket, block_pos, curr->block_size);
+            if (block_pos != -1)
+            {
+                return get_block(curr->bucket, block_pos, curr->block_size);
+            }
+        }
 
+        // TODO With new change, this line below might cause a problem.
         *last_group = curr;
 
         // Move directly to next block with sibling.
         curr = curr->next_sibling;
     }
+
+    // TODO: Optimize.
+    // Get address of last metadata in allocator.
+    while (curr->next)
+    {
+        curr = curr->next;
+    }
+
+    *last = curr;
 
     return NULL;
 }
@@ -89,6 +104,9 @@ void *find_block(struct bucket_meta *allocator, size_t size,
 void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
                    size_t size)
 {
+    if (meta == NULL || meta->bucket == NULL)
+        write(1, "isnulll\n", 8);
+
     // Increase bucket metadata count in allocator.
     allocator->count += 1;
 
@@ -148,8 +166,7 @@ struct bucket_meta *init_alloc(size_t size)
     return new;
 }
 
-// TODO: Handle case when allocator page is used. At 75% usage of allocator for
-// example, remap page to make it bigger.
+// TODO requestBlock should not be called when last is NULL.
 __attribute__((visibility("default"))) void *malloc(size_t size)
 {
     // TODO: check size overflow.
@@ -172,6 +189,7 @@ __attribute__((visibility("default"))) void *malloc(size_t size)
     struct bucket_meta *last_group = NULL;
     void *block = find_block(allocator, size, &last_group, &last);
 
+    // requestBlock is alled when no free block was found.
     return block ? block : requestBlock(last, last_group, size);
 }
 
@@ -241,9 +259,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
             }
             else
             {
-                // Nullify bucket pointer if allocator has only one metadata.
                 meta->bucket = NULL;
-                reset_list(meta->free_list, meta->last_block, meta->block_size);
             }
         }
     }
