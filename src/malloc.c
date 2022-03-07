@@ -96,10 +96,10 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
     struct bucket_meta *new = meta + 1;
 
     // Check if current metadata is the last of current metadata page.
-    size_t page_start = (size_t) page_begin(meta, PAGE_SIZE);
-    size_t last = page_start + (MAX_META * sizeof(struct bucket_meta));
+    struct bucket_meta *page_start = page_begin(meta, PAGE_SIZE);
+    struct bucket_meta *last = page_start + (MAX_META - 1);
 
-    if (meta && (last == (size_t) meta))
+    if (last == meta)
     {
         new = mmap(NULL, PAGE_SIZE, PROT_READ |
                 PROT_WRITE,MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
