@@ -48,18 +48,15 @@ struct bucket_meta *find_meta(void *ptr, int *pos)
 ** Traverses all bucket metadatas to find bucket with block size matching
 ** the (aligned) malloc size requested by user.
 ** The last_group parameter is updated when the last bucket metadata of wanted
-** size is found but full. A pointer to the last metadata of the allocator is
-** updated as well.
+** size is found but full.
 */
-void *find_block(struct bucket_meta *allocator, size_t size,
-                 struct bucket_meta **last_group, struct bucket_meta **last)
+void *find_block(size_t size, struct bucket_meta **last_group)
 {
     struct bucket_meta *curr = allocator;
 
     // Find first block with wanted size.
     while (curr && curr->block_size != size)
     {
-        *last = curr;
         curr = curr->next;
     }
 
@@ -83,29 +80,19 @@ void *find_block(struct bucket_meta *allocator, size_t size,
         curr = curr->next_sibling;
     }
 
-    // TODO: Optimize.
-    // Get address of last metadata in allocator.
-    while (curr->next)
-    {
-        curr = curr->next;
-    }
-
-    *last = curr;
-
     return NULL;
 }
 
 /*
-** Creates a new bucket and appends metadata to list of metadata given.
+** Creates a new bucket and appends metadata to last one of allocator.
 ** A pointer to a free block is returned.
 ** If a bucket with same size was previously found (last_group),
 ** they are linked.
 */
-void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
-                   size_t size)
+void *requestBlock(struct bucket_meta *last_group, size_t size)
 {
-    if (meta == NULL || meta->bucket == NULL)
-        write(1, "isnulll\n", 8);
+    struct bucket_meta *meta = allocator->last_created;
+
 
     // Increase bucket metadata count in allocator.
     allocator->count += 1;
@@ -128,19 +115,25 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
     new->next_sibling = NULL;
     new->block_size = size;
 
+    // Update pointer of last_created metadata in allocator.
+    allocator->last_created = new;
+
     reset_list(new->free_list, new->last_block, size);
 
     // Map page for new bucket.
+    // write(1, "isnew\n", 6);
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // write(1, "isdone\n", 7);
 
     // Return a free block to the user.
     int block_pos = mark_block(new->free_list, size);
 
     void *block = get_block(new->bucket, block_pos, new->block_size);
 
+    // Link last bucket with wanted size to new one.
     if (last_group)
-        last_group->next_sibling = block;
+        last_group->next_sibling = new;
 
     return block;
 }
@@ -156,6 +149,7 @@ struct bucket_meta *init_alloc(size_t size)
     new->block_size = size;
     new->count = 1;
     new->page_size = PAGE_SIZE;
+    new->last_created = new;
 
     reset_list(new->free_list, new->last_block, size);
 
@@ -185,12 +179,11 @@ __attribute__((visibility("default"))) void *malloc(size_t size)
     }
 
     // Find free block or create new bucket (after last one) to get new block.
-    struct bucket_meta *last = NULL;
     struct bucket_meta *last_group = NULL;
-    void *block = find_block(allocator, size, &last_group, &last);
+    void *block = find_block(size, &last_group);
 
     // requestBlock is alled when no free block was found.
-    return block ? block : requestBlock(last, last_group, size);
+    return block ? block : requestBlock(last_group, size);
 }
 
 // TODO: When unmapping a bucket, find way to make metadata slot reusable.
