@@ -5,9 +5,10 @@
 ** Marks a block of the free_list as used.
 ** Returns position of block set if successful else -1 if all blocks used.
 */
-int mark_block(size_t *free_list)
+int mark_block(size_t *free_list, size_t block_size)
 {
-    size_t count = MAX_FLAGS / sizeof(size_t);
+    size_t count = (PAGE_SIZE / block_size) / sizeof(size_t);
+    count += count == 0 ? 1 : 0;
 
     size_t i;
     for (i = 0; i < count; i++)

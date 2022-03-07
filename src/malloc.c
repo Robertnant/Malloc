@@ -66,7 +66,7 @@ void *find_block(struct bucket_meta *allocator, size_t size,
     // Return a free block or move to next bucket of same size if current full.
     while (curr)
     {
-        int block_pos = mark_block(curr->free_list);
+        int block_pos = mark_block(curr->free_list, size);
 
         if (block_pos != -1)
             return get_block(curr->bucket, block_pos, curr->block_size);
@@ -94,13 +94,14 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
 
     struct bucket_meta *new = meta + sizeof(struct bucket_meta);
 
-    // Check remaining memory in page mapped for allocator.
-    if (allocator->count >= 0.75 * MAX_META)
+    // Check if current metadata is the last of current metadata page.
+    size_t page_start = (size_t) page_begin(meta, PAGE_SIZE);
+    size_t last = page_start + (MAX_META * sizeof(struct bucket_meta));
+
+    if (meta && (last == (size_t) meta))
     {
-        mmap(new, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE |
-                MAP_ANONYMOUS, -1, 0);
-        allocator->page_size *= 2;
-        allocator->count /= 2;
+        new = mmap(NULL, PAGE_SIZE, PROT_READ |
+                PROT_WRITE,MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     }
 
     meta->next = new;
@@ -108,18 +109,22 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
     new->next_sibling = NULL;
     new->block_size = size;
 
-    for (size_t i = 0; i < MAX_FLAGS / sizeof(size_t); i++)
+    size_t nb_flags = (PAGE_SIZE / size);
+    size_t count = nb_flags / sizeof(size_t);
+    count += count == 0 ? 1 : 0;
+    for (size_t i = 0; i < count; i++)
     {
-        new->free_list[i] = SIZE_MAX;
-        new->last_block[i] = SIZE_MAX;
+        new->free_list[i] = nb_flags;
+        new->last_block[i] = nb_flags;
     }
+
 
     // Map page for new bucket.
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     // Return a free block to the user.
-    int block_pos = mark_block(new->free_list);
+    int block_pos = mark_block(new->free_list, size);
 
     void *block = get_block(new->bucket, block_pos, new->block_size);
 
@@ -141,10 +146,13 @@ struct bucket_meta *init_alloc(size_t size)
     new->count = 1;
     new->page_size = PAGE_SIZE;
 
-    for (size_t i = 0; i < MAX_FLAGS / sizeof(size_t); i++)
+    size_t nb_flags = (PAGE_SIZE / size);
+    size_t count = nb_flags / sizeof(size_t);
+    count += count == 0 ? 1 : 0;
+    for (size_t i = 0; i < count; i++)
     {
-        new->free_list[i] = SIZE_MAX;
-        new->last_block[i] = SIZE_MAX;
+        new->free_list[i] = nb_flags;
+        new->last_block[i] = nb_flags;
     }
 
     // Map page for new bucket.
@@ -168,7 +176,7 @@ __attribute__((visibility("default"))) void *malloc(size_t size)
         allocator = init_alloc(size);
 
         // Return a free block to the user.
-        int block_pos = mark_block(allocator->free_list);
+        int block_pos = mark_block(allocator->free_list, size);
 
         return get_block(allocator->bucket, block_pos, allocator->block_size);
     }
@@ -194,10 +202,12 @@ __attribute__((visibility("default"))) void free(void *ptr)
         set_free(pos, meta->free_list);
 
         // Unmap bucket if all blocks are free.
-        size_t count = MAX_FLAGS / sizeof(size_t);
+        size_t nb_flags = (PAGE_SIZE / meta->block_size);
+        size_t count = nb_flags / sizeof(size_t);
+        count += count == 0 ? 1 : 0;
 
         size_t i = 0;
-        while (i < count && FREE(meta->free_list[i]))
+        while (i < count && (meta->free_list[i] == nb_flags))
         {
             i++;
         }
@@ -221,10 +231,13 @@ __attribute__((visibility("default"))) void free(void *ptr)
             {
                 // Nullify bucket pointer if allocator has only one metadata.
                 meta->bucket = NULL;
-                for (size_t i = 0; i < MAX_FLAGS / sizeof(size_t); i++)
+                size_t nb_flags = (PAGE_SIZE / meta->block_size);
+                size_t count = nb_flags / sizeof(size_t);
+                count += count == 0 ? 1 : 0;
+                for (size_t i = 0; i < count; i++)
                 {
-                    meta->free_list[i] = SIZE_MAX;
-                    meta->last_block[i] = SIZE_MAX;
+                    meta->free_list[i] = nb_flags;
+                    meta->last_block[i] = nb_flags;
                 }
             }
         }
