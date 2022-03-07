@@ -92,7 +92,8 @@ void *requestBlock(struct bucket_meta *meta, struct bucket_meta *last_group,
     // Increase bucket metadata count in allocator.
     allocator->count += 1;
 
-    struct bucket_meta *new = meta + sizeof(struct bucket_meta);
+    // Move to next metadata using pointer arithmetic.
+    struct bucket_meta *new = meta + 1;
 
     // Check if current metadata is the last of current metadata page.
     size_t page_start = (size_t) page_begin(meta, PAGE_SIZE);
