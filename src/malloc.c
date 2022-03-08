@@ -73,7 +73,6 @@ void *find_block(size_t size, struct bucket_meta **last_group)
             }
         }
 
-        // TODO With new change, this line below might cause a problem.
         *last_group = curr;
 
         // Move directly to next block with sibling.
@@ -178,6 +177,51 @@ __attribute__((visibility("default"))) void *malloc(size_t size)
     return block ? block : requestBlock(last_group, size);
 }
 
+// Checks if all blocks of a givzn bucket are free.
+int is_free(struct bucket_meta *meta)
+{
+    size_t nb_flags = (PAGE_SIZE / meta->block_size);
+    size_t size_bits = SIZE_BITS;
+    size_t count = nb_flags / size_bits;
+    count += count == 0 ? 1 : 0;
+
+    size_t remaining_flags = nb_flags % size_bits;
+
+    if (remaining_flags == 0)
+        count += 1;
+
+    size_t i = 0;
+
+    while (i < count - 1 && (meta->free_list[i] == SIZE_MAX))
+    {
+        i++;
+    }
+
+    // Check last size_t of free list if all previous are free.
+    if (i == count - 1)
+    {
+        if (remaining_flags == 0)
+        {
+            i++;
+        }
+        else
+        {
+            size_t pos = 0;
+            while (pos < remaining_flags && IS_SET(meta->free_list[i], pos))
+            {
+                pos++;
+            }
+
+            if (pos == remaining_flags)
+            {
+                i++;
+            }
+        }
+    }
+
+    return (i == count);
+}
+
 // TODO: When unmapping a bucket, find way to make metadata slot reusable.
 // (link as next bucket meta of last metadata in allocator).
 __attribute__((visibility("default"))) void free(void *ptr)
@@ -190,66 +234,23 @@ __attribute__((visibility("default"))) void free(void *ptr)
         // Mark block as free if bucket must not be unmapped.
         set_free(pos, meta->free_list);
 
-        // Unmap bucket if all blocks are free.
-        size_t nb_flags = (PAGE_SIZE / meta->block_size);
-        size_t size_bits = SIZE_BITS;
-        size_t count = nb_flags / size_bits;
-        count += count == 0 ? 1 : 0;
-
-        size_t remaining_flags = nb_flags % size_bits;
-
-        if (remaining_flags == 0)
-            count += 1;
-
-        size_t i = 0;
-
-        while (i < count - 1 && (meta->free_list[i] == SIZE_MAX))
-        {
-            i++;
-        }
-
-        // Check last size_t of free list if all previous are free.
-        if (i == count - 1)
-        {
-            if (remaining_flags == 0)
-            {
-                i++;
-            }
-            else
-            {
-                size_t pos = 0;
-                while (pos < remaining_flags && IS_SET(meta->free_list[i], pos))
-                {
-                    pos++;
-                }
-
-                if (pos == remaining_flags)
-                    i++;
-            }
-        }
-
-        if (i == count)
+        if (is_free(meta))
         {
             munmap(meta->bucket, sysconf(_SC_PAGESIZE));
             meta->bucket = NULL;
 
             // Unlink unmapped bucket meta from metadata list.
-            if (meta != allocator)
+            if (meta == allocator)
             {
-                // TODO Here I don't unlink this meta but I should find way to
-                // do so.
-                // struct bucket_meta *prev = meta - 1;
-                // prev->next = meta->next;
-                return;
-            }
-            else if (meta->next)
-            {
-                meta->next->last_created = allocator->last_created;
-                allocator = meta->next;
-            }
-            else
-            {
-                meta->bucket = NULL;
+                if (meta->next)
+                {
+                    meta->next->last_created = allocator->last_created;
+                    allocator = meta->next;
+                }
+                else
+                {
+                    meta->bucket = NULL;
+                }
             }
         }
     }
@@ -259,9 +260,6 @@ __attribute__((visibility("default"))) void free(void *ptr)
 ** Naive implementation of realloc where data is moved to a different bucket
 ** depending on realloc size.
 */
-// TODO Optimize way of checking pointer validity (maybe add *last_meta pointer
-// to bucket metadata to then check if page_begin of pointer is within start
-// and last_meta range of bucket metadatas. Maybe check if ptr is aligned.
 // TODO Optimize memcpy
 __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
 {
