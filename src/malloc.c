@@ -231,12 +231,16 @@ __attribute__((visibility("default"))) void free(void *ptr)
         if (i == count)
         {
             munmap(meta->bucket, sysconf(_SC_PAGESIZE));
+            meta->bucket = NULL;
 
             // Unlink unmapped bucket meta from metadata list.
             if (meta != allocator)
             {
-                struct bucket_meta *prev = meta - 1;
-                prev->next = meta->next;
+                // TODO Here I don't unlink this meta but I should find way to
+                // do so.
+                // struct bucket_meta *prev = meta - 1;
+                // prev->next = meta->next;
+                return;
             }
             else if (meta->next)
             {
