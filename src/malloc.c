@@ -114,7 +114,7 @@ void *requestBlock(struct bucket_meta *last_group, size_t size)
     // Update pointer of last_created metadata in allocator.
     allocator->last_created = new;
 
-    reset_list(new->free_list, new->last_block, size);
+    reset_list(new->free_list, size);
 
     // Map page for new bucket.
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
@@ -144,7 +144,7 @@ struct bucket_meta *init_alloc(size_t size)
     new->page_size = PAGE_SIZE;
     new->last_created = new;
 
-    reset_list(new->free_list, new->last_block, size);
+    reset_list(new->free_list, size);
 
     // Map page for new bucket.
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,

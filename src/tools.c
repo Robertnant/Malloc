@@ -43,8 +43,8 @@ void set_free(size_t pos, size_t *free_list)
     SET_FREE(free_list[list_index], index);
 }
 
-// Sets all blocks of free list and last_blocks as free.
-void reset_list(size_t *free_list, size_t *last_block, size_t block_size)
+// Sets all blocks of free list as free.
+void reset_list(size_t *free_list, size_t block_size)
 {
     size_t size_bits = SIZE_BITS;
     size_t nb_flags = (PAGE_SIZE / block_size);
@@ -59,13 +59,11 @@ void reset_list(size_t *free_list, size_t *last_block, size_t block_size)
     for (size_t i = 0; i < count - 1; i++)
     {
         free_list[i] = SIZE_MAX;
-        last_block[i] = SIZE_MAX;
     }
 
     for (size_t i = 0; i < remaining_flags; i++)
     {
         SET_FREE(free_list[count - 1], i);
-        SET_FREE(last_block[count - 1], i);
     }
 }
 

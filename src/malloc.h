@@ -29,7 +29,6 @@ struct bucket_meta
     size_t block_size;
     size_t page_size;
     size_t free_list[MAX_FLAGS / sizeof(size_t)];
-    size_t last_block[MAX_FLAGS / sizeof(size_t)];
 };
 
 #endif /* !MALLOC_H */
