@@ -93,10 +93,6 @@ void *requestBlock(struct bucket_meta *last_group, size_t size)
 {
     struct bucket_meta *meta = allocator->last_created;
 
-
-    // Increase bucket metadata count in allocator.
-    allocator->count += 1;
-
     // Move to next metadata using pointer arithmetic.
     struct bucket_meta *new = meta + 1;
 
@@ -121,10 +117,8 @@ void *requestBlock(struct bucket_meta *last_group, size_t size)
     reset_list(new->free_list, new->last_block, size);
 
     // Map page for new bucket.
-    // write(1, "isnew\n", 6);
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    // write(1, "isdone\n", 7);
 
     // Return a free block to the user.
     int block_pos = mark_block(new->free_list, size);
@@ -147,7 +141,6 @@ struct bucket_meta *init_alloc(size_t size)
     new->next = NULL;
     new->next_sibling = NULL;
     new->block_size = size;
-    new->count = 1;
     new->page_size = PAGE_SIZE;
     new->last_created = new;
 
@@ -160,7 +153,6 @@ struct bucket_meta *init_alloc(size_t size)
     return new;
 }
 
-// TODO requestBlock should not be called when last is NULL.
 __attribute__((visibility("default"))) void *malloc(size_t size)
 {
     // TODO: check size overflow.
@@ -200,10 +192,11 @@ __attribute__((visibility("default"))) void free(void *ptr)
 
         // Unmap bucket if all blocks are free.
         size_t nb_flags = (PAGE_SIZE / meta->block_size);
-        size_t count = nb_flags / SIZE_BITS;
+        size_t size_bits = SIZE_BITS;
+        size_t count = nb_flags / size_bits;
         count += count == 0 ? 1 : 0;
 
-        size_t remaining_flags = nb_flags % SIZE_BITS;
+        size_t remaining_flags = nb_flags % size_bits;
 
         if (remaining_flags == 0)
             count += 1;
@@ -247,7 +240,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
             }
             else if (meta->next)
             {
-                meta->next->count = allocator->count;
+                meta->next->last_created = allocator->last_created;
                 allocator = meta->next;
             }
             else

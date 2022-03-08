@@ -36,8 +36,9 @@ int mark_block(size_t *free_list, size_t block_size)
 void set_free(size_t pos, size_t *free_list)
 {
     // Get index of list containing flag wanted.
-    size_t list_index = pos / SIZE_BITS;
-    size_t index = pos % SIZE_BITS;
+    size_t size_bits = SIZE_BITS;
+    size_t list_index = pos / size_bits;
+    size_t index = pos % size_bits;
 
     SET_FREE(free_list[list_index], index);
 }
@@ -45,11 +46,12 @@ void set_free(size_t pos, size_t *free_list)
 // Sets all blocks of free list and last_blocks as free.
 void reset_list(size_t *free_list, size_t *last_block, size_t block_size)
 {
+    size_t size_bits = SIZE_BITS;
     size_t nb_flags = (PAGE_SIZE / block_size);
-    size_t count = nb_flags / SIZE_BITS;
+    size_t count = nb_flags / size_bits;
     count += count == 0 ? 1 : 0;
 
-    size_t remaining_flags = nb_flags % SIZE_BITS;
+    size_t remaining_flags = nb_flags % size_bits;
 
     if (remaining_flags == 0)
         count += 1;
