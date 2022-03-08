@@ -101,8 +101,8 @@ void *requestBlock(struct bucket_meta *last_group, size_t size)
 
     if (last == meta)
     {
-        new = mmap(NULL, PAGE_SIZE, PROT_READ |
-                PROT_WRITE,MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        new = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     }
 
     meta->next = new;
