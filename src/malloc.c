@@ -38,7 +38,7 @@ struct bucket_meta *find_meta(void *ptr, int *pos)
     {
         char *ptr_cast = ptr;
         *pos = ptr_cast - start;
-        *pos = 0 ? 0 : *pos / curr->block_size;
+        *pos = *pos == 0 ? 0 : *pos / curr->block_size;
     }
 
     return curr;
@@ -103,6 +103,9 @@ void *requestBlock(struct bucket_meta *last_group, size_t size)
     {
         new = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if (new == MAP_FAILED)
+            return NULL;
     }
 
     meta->next = new;
@@ -118,6 +121,9 @@ void *requestBlock(struct bucket_meta *last_group, size_t size)
     // Map page for new bucket.
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if (new->bucket == MAP_FAILED)
+        return NULL;
 
     // Return a free block to the user.
     int block_pos = mark_block(new->free_list, size);
@@ -137,6 +143,10 @@ struct bucket_meta *init_alloc(size_t size)
     struct bucket_meta *new =
         mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ | PROT_WRITE,
              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if (new == MAP_FAILED)
+        return NULL;
+
     new->next = NULL;
     new->next_sibling = NULL;
     new->block_size = size;
@@ -146,8 +156,13 @@ struct bucket_meta *init_alloc(size_t size)
     reset_list(new->free_list, size);
 
     // Map page for new bucket.
+    size = size ? size : align(size + 1);
+
     new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if (new->bucket == MAP_FAILED)
+        return NULL;
 
     return new;
 }
@@ -180,6 +195,9 @@ __attribute__((visibility("default"))) void *malloc(size_t size)
 // Checks if all blocks of a givzn bucket are free.
 int is_free(struct bucket_meta *meta)
 {
+    if (meta->block_size == 0)
+        return 0;
+
     size_t nb_flags = (PAGE_SIZE / meta->block_size);
     size_t size_bits = SIZE_BITS;
     size_t count = nb_flags / size_bits;
@@ -292,6 +310,13 @@ __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
 
 __attribute__((visibility("default"))) void *calloc(size_t nmemb, size_t size)
 {
+    // Check for overflow.
+    size_t increment;
+    int cond = __builtin_mul_overflow(size, nmemb, &increment);
+
+    if (cond)
+        return NULL;
+
     // Cast pointer to long double as blocks are multiples of this type.
     long double *new = malloc(nmemb * size);
 

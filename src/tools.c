@@ -1,4 +1,5 @@
 #include "tools.h"
+
 #include "malloc.h"
 
 /*
@@ -7,6 +8,9 @@
 */
 int mark_block(size_t *free_list, size_t block_size)
 {
+    if (block_size == 0)
+        return 0;
+
     size_t count = (PAGE_SIZE / block_size) / sizeof(size_t);
     count += count == 0 ? 1 : 0;
 
@@ -46,6 +50,12 @@ void set_free(size_t pos, size_t *free_list)
 // Sets all blocks of free list as free.
 void reset_list(size_t *free_list, size_t block_size)
 {
+    if (block_size == 0)
+    {
+        free_list[0] = SIZE_MAX;
+        return;
+    }
+
     size_t size_bits = SIZE_BITS;
     size_t nb_flags = (PAGE_SIZE / block_size);
     size_t count = nb_flags / size_bits;
@@ -68,10 +78,12 @@ void reset_list(size_t *free_list, size_t block_size)
 }
 
 // Gets the nth (0 indexed) block of a bucket using its block_s size.
-void *get_block(void *bucket, size_t n, size_t block_size)
+void *get_block(void *bucket, int n, size_t block_size)
 {
     char *bucket_cast = bucket;
-    return bucket_cast + (n * block_size);
+    char *res = n == -1 ? bucket_cast : bucket_cast + (n * block_size);
+
+    return res;
 }
 
 // Gets begining of page from given block address.
