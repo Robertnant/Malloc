@@ -210,7 +210,8 @@ int is_free(struct bucket_meta *meta)
 
     size_t i = 0;
 
-    while (i < count - 1 && (meta->free_list[i] == SIZE_MAX))
+    size_t to_check = meta->block_size > PAGE_SIZE ? 1 : SIZE_MAX;
+    while (i < count - 1 && (meta->free_list[i] == to_check))
     {
         i++;
     }

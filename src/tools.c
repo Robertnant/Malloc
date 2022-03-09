@@ -66,9 +66,16 @@ void reset_list(size_t *free_list, size_t block_size)
     if (remaining_flags == 0)
         count += 1;
 
-    for (size_t i = 0; i < count - 1; i++)
+    if (block_size <= PAGE_SIZE)
     {
-        free_list[i] = SIZE_MAX;
+        for (size_t i = 0; i < count - 1; i++)
+        {
+            free_list[i] = SIZE_MAX;
+        }
+    }
+    else
+    {
+        free_list[0] = 1;
     }
 
     for (size_t i = 0; i < remaining_flags; i++)
