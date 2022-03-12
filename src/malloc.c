@@ -176,8 +176,6 @@ struct bucket_meta *init_alloc(size_t size)
 
 __attribute__((visibility("default"))) void *malloc(size_t size)
 {
-    // TODO: check size overflow.
-
     size = align(size);
 
     // Create new allocator containing addresses of buckets if not found yet.
@@ -248,10 +246,11 @@ int is_free(struct bucket_meta *meta)
     return (i == count);
 }
 
-// TODO: When unmapping a bucket, find way to make metadata slot reusable.
-// (link as next bucket meta of last metadata in allocator).
 __attribute__((visibility("default"))) void free(void *ptr)
 {
+    if (!ptr)
+        return;
+
     int pos;
     struct bucket_meta *meta = find_meta(ptr, &pos);
 
@@ -279,10 +278,6 @@ __attribute__((visibility("default"))) void free(void *ptr)
                 {
                     meta->next->last_created = allocator->last_created;
                     allocator = meta->next;
-                }
-                else
-                {
-                    meta->bucket = NULL;
                 }
             }
         }
@@ -313,7 +308,7 @@ __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
         if (get_block(meta->bucket, pos, meta->block_size) != ptr)
         {
             errx(1, "invalid pointer");
-            return ptr;
+            return NULL;
         }
 
         size = align(size);
