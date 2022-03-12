@@ -321,8 +321,6 @@ __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
 
         if (new)
         {
-            struct bucket_meta *new_meta = find_meta(ptr, NULL);
-            new_meta->free_list[0] -= 1;
             mempcpy(new, ptr, meta->block_size);
 
             // Free old bucket.
