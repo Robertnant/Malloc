@@ -119,7 +119,11 @@ void *requestBlock(struct bucket_meta *last_group, size_t size)
     reset_list(new->free_list, size);
 
     // Map page for new bucket.
-    new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
+    size_t mmap_size =
+        (size < PAGE_SIZE) ? PAGE_SIZE : (size / PAGE_SIZE) * PAGE_SIZE;
+
+    new->page_size = mmap_size;
+    new->bucket = mmap(NULL, mmap_size , PROT_READ | PROT_WRITE,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if (new->bucket == MAP_FAILED)
@@ -158,7 +162,10 @@ struct bucket_meta *init_alloc(size_t size)
     // Map page for new bucket.
     size = size ? size : align(size + 1);
 
-    new->bucket = mmap(NULL, size, PROT_READ | PROT_WRITE,
+    size_t mmap_size =
+        (size < PAGE_SIZE) ? PAGE_SIZE : (size / PAGE_SIZE) * PAGE_SIZE;
+
+    new->bucket = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if (new->bucket == MAP_FAILED)
@@ -255,7 +262,7 @@ __attribute__((visibility("default"))) void free(void *ptr)
 
         if (is_free(meta))
         {
-            munmap(meta->bucket, sysconf(_SC_PAGESIZE));
+            munmap(meta->bucket, meta->page_size);
             meta->bucket = NULL;
 
             // Unlink unmapped bucket meta from metadata list.
@@ -279,11 +286,16 @@ __attribute__((visibility("default"))) void free(void *ptr)
 ** Naive implementation of realloc where data is moved to a different bucket
 ** depending on realloc size.
 */
-// TODO Optimize memcpy
 __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
 {
     if (!ptr)
         return malloc(size);
+
+    if (size == 0)
+    {
+        free(ptr);
+        return NULL;
+    }
 
     int pos;
     struct bucket_meta *meta = find_meta(ptr, &pos);
@@ -291,6 +303,11 @@ __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
     if (meta)
     {
         size = align(size);
+
+        // Do nothing if size when aligned matches bucket's current block size.
+        if (size == meta->block_size)
+            return ptr;
+
         void *new = malloc(size);
 
         if (new)
