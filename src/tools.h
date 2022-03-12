@@ -6,9 +6,9 @@
 
 #define FULL(A) ((A) == 0)
 #define SIZE_BITS sizeof(size_t) * 8
-#define SET_FREE(NUM, POS) ((NUM) |= 1 << (POS))
-#define SET_USED(NUM, POS) ((NUM) &= ~(1 << (POS)))
-#define IS_SET(NUM, POS) ((NUM) & (1 << (POS)))
+#define SET_FREE(NUM, POS) ((NUM) |= 1ULL << (POS))
+#define SET_USED(NUM, POS) ((NUM) &= ~(1ULL << (POS)))
+#define IS_SET(NUM, POS) ((NUM) & (1ULL << (POS)))
 
 int mark_block(size_t *free_list, size_t size);
 void *get_block(void *bucket, int n, size_t block_size);
