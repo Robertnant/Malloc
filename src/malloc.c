@@ -255,6 +255,13 @@ __attribute__((visibility("default"))) void free(void *ptr)
     int pos;
     struct bucket_meta *meta = find_meta(ptr, &pos);
 
+    // Check pointer validity.
+    if (get_block(meta->bucket, pos, meta->block_size) != ptr)
+    {
+        errx(1, "invalid pointer");
+        return;
+    }
+
     if (meta)
     {
         // Mark block as free if bucket must not be unmapped.
@@ -302,6 +309,13 @@ __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
 
     if (meta)
     {
+        // Check pointer validity.
+        if (get_block(meta->bucket, pos, meta->block_size) != ptr)
+        {
+            errx(1, "invalid pointer");
+            return ptr;
+        }
+
         size = align(size);
 
         // Do nothing if size when aligned matches bucket's current block size.
