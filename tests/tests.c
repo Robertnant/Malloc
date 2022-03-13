@@ -48,7 +48,6 @@ Test(REALLOC, free_equivalent)
     int pos;
     struct bucket_meta *meta = find_meta(str, &pos);
 
-    free(str);
     cr_assert_eq(meta->free_list[pos].free == YES, 1);
 }
 
