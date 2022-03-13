@@ -223,6 +223,9 @@ __attribute__((visibility("default"))) void free(void *ptr)
     int pos;
     struct bucket_meta *meta = find_meta(ptr, &pos);
 
+    if (!meta)
+        return;
+
     // Check pointer validity.
     if (get_block(meta->bucket, pos, meta->block_size) != ptr)
     {
