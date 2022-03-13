@@ -1,35 +1,27 @@
 #include "tools.h"
 
-#include "malloc.h"
-
 /*
 ** Marks a block of the free_list as used.
 ** Returns position of block set if successful else -1 if all blocks used.
 */
-int mark_block(size_t *free_list, size_t block_size)
+int mark_block(struct free_list *free_list, size_t block_size)
 {
     if (block_size == 0)
         return 0;
 
-    size_t count = (PAGE_SIZE / block_size) / sizeof(size_t);
+    size_t count = (PAGE_SIZE / block_size);
     count += count == 0 ? 1 : 0;
 
     size_t i;
-    for (i = 0; i < count; i++)
+    while (i < count && free_list[i].free == NO)
     {
-        if (!FULL(free_list[i]))
-        {
-            // Test each bit of free list until a free block is found.
-            int pos = 0;
-            while (!IS_SET(free_list[i], pos))
-            {
-                pos++;
-            }
+        i++;
+    }
 
-            SET_USED(free_list[i], pos);
-
-            return pos;
-        }
+    if (i < count)
+    {
+        free_list[i].free = NO;
+        return i;
     }
 
     // All blocks used.
@@ -37,50 +29,37 @@ int mark_block(size_t *free_list, size_t block_size)
 }
 
 // Sets block at given position as free.
-void set_free(size_t pos, size_t *free_list)
+void set_free(size_t pos, struct free_list *free_list)
 {
-    // Get index of list containing flag wanted.
-    size_t size_bits = SIZE_BITS;
-    size_t list_index = pos / size_bits;
-    size_t index = pos % size_bits;
-
-    SET_FREE(free_list[list_index], index);
+    free_list[pos].free = YES;
 }
 
 // Sets all blocks of free list as free.
-void reset_list(size_t *free_list, size_t block_size)
+void reset_list(struct free_list *free_list, size_t block_size)
 {
+    size_t i = 0;
+
     if (block_size == 0)
     {
-        free_list[0] = SIZE_MAX;
-        return;
-    }
-
-    size_t size_bits = SIZE_BITS;
-    size_t nb_flags = (PAGE_SIZE / block_size);
-    size_t count = nb_flags / size_bits;
-    count += count == 0 ? 1 : 0;
-
-    size_t remaining_flags = nb_flags % size_bits;
-
-    if (remaining_flags == 0)
-        count += 1;
-
-    if (block_size <= PAGE_SIZE)
-    {
-        for (size_t i = 0; i < count - 1; i++)
-        {
-            free_list[i] = SIZE_MAX;
-        }
+        free_list[0].free = YES;
+        i++;
     }
     else
     {
-        free_list[0] = 1;
+        size_t nb_flags = (PAGE_SIZE / block_size);
+        nb_flags += nb_flags ? 0 : 1;
+
+        while (i < nb_flags)
+        {
+            free_list[i].free = YES;
+            i++;
+        }
     }
 
-    for (size_t i = 0; i < remaining_flags; i++)
+    while (i < MAX_FLAGS)
     {
-        SET_FREE(free_list[count - 1], i);
+        free_list[i].free = NO;
+        i++;
     }
 }
 
@@ -88,9 +67,7 @@ void reset_list(size_t *free_list, size_t block_size)
 void *get_block(void *bucket, int n, size_t block_size)
 {
     char *bucket_cast = bucket;
-    char *res = n == -1 ? bucket_cast : bucket_cast + (n * block_size);
-
-    return res;
+    return bucket_cast + (n * block_size);
 }
 
 // Gets begining of page from given block address.

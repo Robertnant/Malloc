@@ -204,46 +204,15 @@ int is_free(struct bucket_meta *meta)
         return 0;
 
     size_t nb_flags = (PAGE_SIZE / meta->block_size);
-    size_t size_bits = SIZE_BITS;
-    size_t count = nb_flags / size_bits;
-    count += count == 0 ? 1 : 0;
-
-    size_t remaining_flags = nb_flags % size_bits;
-
-    if (remaining_flags == 0)
-        count += 1;
+    nb_flags += nb_flags == 0 ? 1 : 0;
 
     size_t i = 0;
-
-    size_t to_check = meta->block_size > PAGE_SIZE ? 1 : SIZE_MAX;
-    while (i < count - 1 && (meta->free_list[i] == to_check))
+    while (i < nb_flags && meta->free_list[i].free == YES)
     {
         i++;
     }
 
-    // Check last size_t of free list if all previous are free.
-    if (i == count - 1)
-    {
-        if (remaining_flags == 0)
-        {
-            i++;
-        }
-        else
-        {
-            size_t pos = 0;
-            while (pos < remaining_flags && IS_SET(meta->free_list[i], pos))
-            {
-                pos++;
-            }
-
-            if (pos == remaining_flags)
-            {
-                i++;
-            }
-        }
-    }
-
-    return (i == count);
+    return (i == nb_flags);
 }
 
 __attribute__((visibility("default"))) void free(void *ptr)
