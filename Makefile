@@ -1,12 +1,13 @@
 CC = gcc
 CPPFLAGS = -D_DEFAULT_SOURCE
+CPPFLAGSTEST = -D_DEFAULT_SOURCE -Isrc
 CFLAGS = -Wall -Wextra -Werror -std=c99 -fPIC -fno-builtin
 LDFLAGS = -shared
 VPATH = src tests
 
 TARGET_LIB = libmalloc.so
 OBJS = malloc.o tools.o
-TSRC = tests/tests.c
+TSRC = src/malloc.c src/tools.c tests/tests.c
 
 all: library
 
@@ -20,7 +21,7 @@ debug: CFLAGS += -g
 debug: clean $(TARGET_LIB)
 
 check: library $(TSRC)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(TSRC) -o check -lcriterion
+	$(CC) $(CPPFLAGSTEST) $(CFLAGS) $(TSRC) -o check -lcriterion
 	./check
 
 clean:

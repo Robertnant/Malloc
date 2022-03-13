@@ -16,6 +16,8 @@ struct free_list
     int free;
 };
 
+struct bucket_meta *find_meta(void *ptr, int *pos);
+
 /*
 ** List of addresses of different buckets (pages split in different sizes)
 ** available. This list is not visible by user.
