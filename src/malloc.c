@@ -1,11 +1,10 @@
 #define _GNU_SOURCE
 
-#include "malloc.h"
-
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include "malloc.h"
 #include "tools.h"
 
 #define MAX_META PAGE_SIZE / sizeof(struct bucket_meta)
