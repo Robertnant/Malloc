@@ -278,6 +278,9 @@ __attribute__((visibility("default"))) void *realloc(void *ptr, size_t size)
 
         size = align(size);
 
+        if (size == meta->block_size)
+            return ptr;
+
         void *new = malloc(size);
 
         if (new)
