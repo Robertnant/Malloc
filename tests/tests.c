@@ -43,10 +43,9 @@ Test(REALLOC, same_block)
 Test(REALLOC, free_equivalent)
 {
     char *str = calloc(1, 20);
-    str = realloc(str, 0);
-
     int pos;
     struct bucket_meta *meta = find_meta(str, &pos);
+    str = realloc(str, 0);
 
     cr_assert_eq(meta->free_list[pos].free == YES, 1);
 }
