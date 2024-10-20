@@ -17,8 +17,6 @@ The implementation utilizes the following key concepts:
 - **Buckets:** Memory is divided into buckets, each containing blocks of a specific size.
 - **Free List:** Each bucket maintains a free list to track available blocks. The free list is implemented as an array of flags within the bucket metadata.
 - **Page Allocation:** When a new bucket is required, a new page is requested from the operating system using `mmap`.
-- **Block Splitting:**  Currently not implemented, but could be added to divide large blocks into smaller ones if needed. 
-- **Coalescing:** Currently not implemented, but could be added to merge adjacent free blocks upon freeing.
 
 ## Usage
 
